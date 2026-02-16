@@ -91,7 +91,9 @@
             "properties": {
                 "id": 3,
                 "area_m2": 4233.38,
-                "perimetroM": 268.756
+                "perimetroM": 268.756,
+                "status": "vendido",
+                "obs": "Observações ou Promoções do lote..."
             },
             "geometry": {
                 "type": "MultiPolygon",
