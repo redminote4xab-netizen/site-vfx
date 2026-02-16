@@ -53,7 +53,7 @@
                 "id": 2,
                 "area_m2": 5629.72,
                 "perimetroM": 305.751,
-                "status": "vendido",
+                "status": "disponivel",
                 "obs": "Observações ou Promoções do lote..."
             },
             "geometry": {
@@ -174,7 +174,7 @@
                 "id": 5,
                 "area_m2": 1275.96,
                 "perimetroM": 147.987,
-                "status": "vendido",
+                "status": "disponivel",
                 "obs": "Observações ou Promoções do lote..."
             },
             "geometry": {

@@ -1,6 +1,7 @@
 import customtkinter as ctk
 import json
 import os
+import subprocess  # Necessário para enviar ao GitHub
 from tkinter import messagebox
 
 class ControleVendasFrame(ctk.CTkFrame):
@@ -20,7 +21,6 @@ class ControleVendasFrame(ctk.CTkFrame):
         # --- SELEÇÃO DE LOTEAMENTO ---
         ctk.CTkLabel(self.container, text="Selecione o Loteamento:", font=("Arial", 12), text_color="#2ECC71").pack(pady=(10, 0))
         
-        # Lista as pastas que começam com "LOTEAMENTO" (baseado na sua imagem)
         self.loteamentos_disponiveis = [f for f in os.listdir('.') if os.path.isdir(f) and f.startswith("LOTEAMENTO")]
         
         if not self.loteamentos_disponiveis:
@@ -36,7 +36,6 @@ class ControleVendasFrame(ctk.CTkFrame):
             width=250
         )
         self.loteamento_menu.pack(pady=10)
-        # -----------------------------
 
         # Campo ID do Lote
         self.lote_ent = ctk.CTkEntry(self.container, placeholder_text="Número do Lote (Ex: 6)", width=250, border_color="#2ECC71")
@@ -58,13 +57,24 @@ class ControleVendasFrame(ctk.CTkFrame):
                                        font=("Arial", 14, "bold"), command=self.processar_atualizacao)
         self.btn_salvar.pack(pady=20)
 
+    def enviar_ao_github(self, lote, loteamento):
+        """ Função que faz o Push automático para o site """
+        try:
+            # Executa os comandos de Git um por um
+            subprocess.run("git add .", shell=True, check=True)
+            subprocess.run(f'git commit -m "Atualizacao Lote {lote} - {loteamento}"', shell=True, check=True)
+            subprocess.run("git push", shell=True, check=True)
+            return True
+        except Exception as e:
+            print(f"Erro ao subir para o GitHub: {e}")
+            return False
+
     def processar_atualizacao(self):
         loteamento_selecionado = self.loteamento_var.get()
         id_lote_alvo = self.lote_ent.get().strip()
         novo_status = self.status_var.get()
         nova_obs = self.obs_txt.get("0.0", "end").strip()
 
-        # Define o caminho dinâmico: LOTEAMENTO X / LOTES.geojson
         caminho_geojson = os.path.join(loteamento_selecionado, "LOTES.geojson")
 
         if loteamento_selecionado == "Nenhum loteamento encontrado":
@@ -76,20 +86,16 @@ class ControleVendasFrame(ctk.CTkFrame):
             return
 
         if not os.path.exists(caminho_geojson):
-            messagebox.showerror("Erro", f"O arquivo LOTES.geojson não foi encontrado dentro de: {loteamento_selecionado}")
+            messagebox.showerror("Erro", f"O arquivo LOTES.geojson não encontrado em: {loteamento_selecionado}")
             return
 
         try:
-            # 1. Lê o arquivo GeoJSON do loteamento selecionado
             with open(caminho_geojson, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
             lote_encontrado = False
-
-            # 2. Varre os lotes para encontrar o ID correto
             for feature in data['features']:
                 props = feature['properties']
-                # Tenta achar por 'Lote', 'id' ou 'ID'
                 if str(props.get('Lote')) == id_lote_alvo or str(props.get('id')) == id_lote_alvo or str(props.get('ID')) == id_lote_alvo:
                     props['status'] = novo_status
                     props['obs'] = nova_obs
@@ -97,11 +103,15 @@ class ControleVendasFrame(ctk.CTkFrame):
                     break
 
             if lote_encontrado:
-                # 3. Salva no local correto
+                # 1. Salva o arquivo localmente
                 with open(caminho_geojson, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=4, ensure_ascii=False)
                 
-                messagebox.showinfo("Sucesso", f"Lote {id_lote_alvo} em {loteamento_selecionado} atualizado!")
+                # 2. Envia para o GitHub automaticamente
+                if self.enviar_ao_github(id_lote_alvo, loteamento_selecionado):
+                    messagebox.showinfo("Sucesso", f"Lote {id_lote_alvo} atualizado e PUBLICADO no site!")
+                else:
+                    messagebox.showwarning("Atenção", "Lote salvo localmente, mas erro ao enviar para o GitHub. Verifique o Token.")
             else:
                 messagebox.showwarning("Não encontrado", f"O Lote {id_lote_alvo} não existe em {loteamento_selecionado}.")
 
