@@ -134,10 +134,8 @@
         // LOGICA PARA SUMIR A TELA PRETA
         window.addEventListener('load', function() {
             const tela = document.getElementById('tela-preta-abertura');
-            // Dá um pequeno atraso de 0.5s para o usuário ver o preto e depois faz o fade
             setTimeout(() => {
                 tela.classList.add('fade-sumir');
-                // Remove do display para não atrapalhar
                 setTimeout(() => {
                     tela.style.display = 'none';
                 }, 1500);
