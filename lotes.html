@@ -149,12 +149,11 @@
             cancelarRota();
             gsap.to("#lote-card", { opacity: 0, y: 10 });
 
-            // Atualiza Logo no canto direito e Nome na esquerda
             document.getElementById('loteamento-logo').src = `${pasta}/LOGO.png`;
             document.getElementById('display-nome').innerText = pasta.replace("LOTEAMENTO", "DELTA");
 
-            // Carregar Medidas
-            fetch(`${pasta}/MEDIDAS.geojson`).then(res => res.json()).then(data => {
+            // Fetch Medidas com Anti-Cache
+            fetch(`${pasta}/MEDIDAS.geojson?t=${Date.now()}`).then(res => res.json()).then(data => {
                 L.geoJSON(data, {
                     onEachFeature: (f, layer) => {
                         const d = f.properties.Distância || f.properties.distancia;
@@ -172,8 +171,8 @@
                 });
             }).catch(err => console.log("Sem arquivo de medidas"));
 
-            // Carregar Lotes
-            fetch(`${pasta}/LOTES.geojson`).then(res => res.json()).then(data => {
+            // Fetch Lotes com Anti-Cache (Garante leitura da atualização do Python)
+            fetch(`${pasta}/LOTES.geojson?t=${Date.now()}`).then(res => res.json()).then(data => {
                 camadaLotes = L.geoJSON(data, {
                     style: definirEstilo,
                     onEachFeature: (f, layer) => {
