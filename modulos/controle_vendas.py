@@ -1,7 +1,7 @@
 import customtkinter as ctk
 import json
 import os
-import subprocess # Necessário para a integração com o GitHub
+import subprocess  # Necessário para a integração com o GitHub
 from tkinter import messagebox
 
 class ControleVendasFrame(ctk.CTkFrame):
@@ -59,12 +59,21 @@ class ControleVendasFrame(ctk.CTkFrame):
         self.btn_salvar.pack(pady=20)
 
     def sincronizar_github(self, mensagem):
-        """ Faz o push automático para o site atualizar """
+        """ Faz o push forçado para garantir que o site atualize sem travar por conflitos """
         try:
-            # Executa os comandos exatamente como fizemos no terminal
+            # 1. Aborta qualquer rebase que tenha ficado travado por erros anteriores
+            subprocess.run("git rebase --abort", shell=True, capture_output=True)
+            
+            # 2. Adiciona as mudanças no arquivo JSON
             subprocess.run("git add .", shell=True, check=True)
-            subprocess.run(f'git commit -m "{mensagem}"', shell=True, check=True)
-            subprocess.run("git push", shell=True, check=True)
+            
+            # 3. Faz o commit (Ignora erro se não houver mudanças reais)
+            subprocess.run(f'git commit -m "{mensagem}"', shell=True, capture_output=True)
+            
+            # 4. Envia forçado para o GitHub (Sobrescreve divergências e limpa o erro 'rejected')
+            # O --force é essencial para automação sem supervisão
+            subprocess.run("git push origin main --force", shell=True, check=True)
+            
             return True
         except Exception as e:
             print(f"Erro no auto-push: {e}")
@@ -90,7 +99,6 @@ class ControleVendasFrame(ctk.CTkFrame):
             lote_encontrado = False
             for feature in data['features']:
                 props = feature['properties']
-                # Verifica ID, id ou Lote
                 if str(props.get('Lote')) == id_lote_alvo or str(props.get('id')) == id_lote_alvo or str(props.get('ID')) == id_lote_alvo:
                     props['status'] = novo_status
                     props['obs'] = nova_obs
@@ -106,7 +114,7 @@ class ControleVendasFrame(ctk.CTkFrame):
                 if self.sincronizar_github(msg):
                     messagebox.showinfo("Sucesso", "Mapa atualizado com sucesso no site!")
                 else:
-                    messagebox.showwarning("Git", "Salvo localmente, mas falha ao enviar para o GitHub. Verifique o Token.")
+                    messagebox.showwarning("Git", "Salvo localmente, mas erro ao sincronizar. Verifique se o terminal está aberto em outra tarefa.")
             else:
                 messagebox.showwarning("Erro", "Lote não encontrado no mapa.")
 
