@@ -14,8 +14,8 @@
                 "id": 1,
                 "area_m2": 6465.75,
                 "perimetroM": 325.765,
-                "status": "vendido",
-                "obs": ""
+                "status": "disponivel",
+                "obs": "Observações ou Promoções do lote..."
             },
             "geometry": {
                 "type": "MultiPolygon",
