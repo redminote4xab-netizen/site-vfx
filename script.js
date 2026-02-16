@@ -10,50 +10,64 @@ let CONFIG_LOTEAMENTO = {
     statusLotes: {} 
 };
 
-// FUNÇÃO PARA LIGAR O SITE AO ARQUIVO DO PYTHON
+// 1. FUNÇÃO QUE PINTA O MAPA (O que estava faltando)
+function atualizarMapaVisual() {
+    console.log("Pintando o mapa com novos status...");
+    // Esta função procura todos os elementos de lote no seu HTML e troca a cor
+    Object.keys(CONFIG_LOTEAMENTO.statusLotes).forEach(idLote => {
+        const info = CONFIG_LOTEAMENTO.statusLotes[idLote];
+        
+        // Tenta encontrar o lote pelo ID (Ex: Lote_1, Lote_2 ou apenas 1, 2)
+        const elementoLote = document.getElementById(`lote-${idLote}`) || document.getElementById(idLote);
+        
+        if (elementoLote) {
+            elementoLote.style.fill = info.cor; // Muda a cor do polígono
+            elementoLote.setAttribute('fill', info.cor);
+        }
+    });
+}
+
+// 2. FUNÇÃO QUE BUSCA OS DADOS DO PYTHON
 async function carregarDadosLoteamento(nomePasta) {
     try {
-        // O "?t=" força o navegador a baixar o arquivo novo do GitHub sem usar o cache antigo
-        const resposta = await fetch(`./${nomePasta}/LOTES.geojson?t=${new Date().getTime()}`);
+        // O "?t=" impede que o navegador use dados antigos do cache
+        const url = `./${nomePasta}/LOTES.geojson?t=${new Date().getTime()}`;
+        const resposta = await fetch(url);
         const dados = await resposta.json();
 
         CONFIG_LOTEAMENTO.statusLotes = {};
 
         dados.features.forEach(feature => {
-            const idLote = String(feature.properties.Lote || feature.properties.id || feature.properties.ID);
-            const status = feature.properties.status || "disponivel";
+            const props = feature.properties;
+            const idLote = String(props.Lote || props.id || props.ID);
+            const status = (props.status || "disponivel").toLowerCase();
             
-            let corLote = "#00ff00"; // Verde (Disponível)
-            if (status === "vendido") corLote = "#ff4d4d"; // Vermelho
-            if (status === "reservado") corLote = "#f1c40f"; // Amarelo
+            let corLote = "#2ECC71"; // Verde (Disponível) - Padronizado com seu software
+            if (status === "vendido") corLote = "#FF4D4D";   // Vermelho
+            if (status === "reservado") corLote = "#F1C40F"; // Amarelo
 
             CONFIG_LOTEAMENTO.statusLotes[idLote] = {
-                status: status.charAt(0).toUpperCase() + status.slice(1),
+                status: status,
                 cor: corLote,
-                obs: feature.properties.obs || ""
+                obs: props.obs || ""
             };
         });
 
-        console.log(`Dados do ${nomePasta} carregados!`, CONFIG_LOTEAMENTO.statusLotes);
+        console.log(`Dados carregados para: ${nomePasta}`);
         
-        // --- COMANDO CRÍTICO: ATUALIZA O MAPA VISUALMENTE ---
-        if (typeof renderMap === "function") {
-            renderMap(); // Chama a função que desenha os polígonos com as novas cores
-        } else if (typeof drawMap === "function") {
-            drawMap();
-        }
-        // --------------------------------------------------
+        // CHAMA A PINTURA DO MAPA
+        atualizarMapaVisual();
 
     } catch (erro) {
         console.error("Erro ao carregar os lotes do GitHub:", erro);
     }
 }
 
-// Inicia o carregamento
+// Inicia o sistema
 carregarDadosLoteamento('LOTEAMENTO 1');
 
 // ==========================================
-// SEUS SCRIPTS ORIGINAIS (MANTIDOS 100%)
+// SEUS SCRIPTS DE INTERFACE (MANTIDOS)
 // ==========================================
 function openTab(evt, tabName) {
     const contents = document.getElementsByClassName("tab-content");
@@ -82,14 +96,5 @@ function initParticles() {
         container.appendChild(p);
     }
 }
-
-const s = document.createElement('style');
-s.innerHTML = `@keyframes slowMove { 
-    0% { transform: translateY(100vh); opacity: 0; } 
-    20% { opacity: 0.5; } 
-    80% { opacity: 0.5; } 
-    100% { transform: translateY(-10vh); opacity: 0; } 
-}`;
-document.head.appendChild(s);
 
 window.onload = initParticles;
