@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delta Loteamento | Só Paz</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+
+    <style>
+    :root { 
+        --gold: #c5a059; 
+        --gold-light: #ecd299;
+        --dark: #0a0a0a; 
+        --blue-select: #0088ff; 
+    }
+
+    body { 
+        background: var(--dark); 
+        font-family: 'Montserrat', sans-serif; 
+        color: white; 
+        overflow: hidden; 
+    }
+
+    #map { height: 100vh; width: 100%; z-index: 1; background: #000; }
+    
+    .cinzel { font-family: 'Cinzel', serif; }
+    
+    /* Menu Lateral com degradê suave */
+    .side-menu {
+        position: absolute; left: 0; top: 0; bottom: 0; width: 400px;
+        background: linear-gradient(to right, rgba(10,10,10,0.98) 70%, rgba(10,10,10,0));
+        z-index: 2000; padding: 40px; pointer-events: none;
+    }
+    .side-menu > * { pointer-events: auto; }
+
+    /* Estilização Premium do Seletor (Dropdown) */
+    select#select-loteamento {
+        appearance: none;
+        -webkit-appearance: none;
+        background-color: rgba(20, 20, 20, 0.8) !important;
+        color: var(--gold-light) !important;
+        border: 1px solid var(--gold) !important;
+        padding: 12px 15px;
+        width: 100%;
+        font-family: 'Cinzel', serif;
+        font-size: 11px;
+        letter-spacing: 1px;
+        cursor: pointer;
+        outline: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23c5a059' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 18px;
+        transition: all 0.3s;
+    }
+
+    select#select-loteamento:hover {
+        background-color: rgba(197, 160, 89, 0.1) !important;
+        border-color: var(--gold-light) !important;
+    }
+
+    select#select-loteamento option {
+        background: #111;
+        color: white;
+    }
+
+    /* Info Destaque (Trajeto) */
+    .info-destaque {
+        background: rgba(197, 160, 89, 0.1); 
+        border: 1px solid var(--gold);
+        padding: 15px; border-radius: 4px; margin-top: 15px;
+        backdrop-filter: blur(10px);
+    }
+
+    .lote-label {
+        background: transparent !important; border: none !important;
+        color: white !important; font-weight: 800; font-size: 14px; text-shadow: 2px 2px 4px #000;
+    }
+
+    /* Botão Dourado com Brilho Passante */
+    .btn-gold { 
+        background: linear-gradient(135deg, #c5a059 0%, #ecd299 50%, #c5a059 100%);
+        color: #000 !important;
+        font-weight: 800;
+        letter-spacing: 2px;
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: none;
+        box-shadow: 0 4px 15px rgba(197, 160, 89, 0.3);
+        position: relative;
+        overflow: hidden;
+        clip-path: polygon(5% 0, 100% 0, 95% 100%, 0% 100%);
+    }
+
+    .btn-gold:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(197, 160, 89, 0.5);
+        filter: brightness(1.1);
+    }
+
+    .btn-gold::after {
+        content: '';
+        position: absolute; top: -50%; left: -60%; width: 20%; height: 200%;
+        background: rgba(255, 255, 255, 0.4);
+        transform: rotate(30deg);
+        transition: all 0.6s;
+        opacity: 0;
+    }
+
+    .btn-gold:hover::after { left: 120%; opacity: 1; }
+
+    /* Botão Outline */
+    .btn-outline {
+        border: 1px solid var(--gold); 
+        color: var(--gold) !important; 
+        background: transparent;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(5px);
+    }
+
+    .btn-outline:hover {
+        background: rgba(197, 160, 89, 0.1);
+        border-color: var(--gold-light);
+        color: var(--gold-light) !important;
+    }
+
+    /* Logo e GPS UI */
+    .map-logo {
+        position: absolute; bottom: 20px; right: 20px;
+        width: 150px; z-index: 1000; pointer-events: none;
+    }
+
+    .btn-locate {
+        position: absolute; bottom: 100px; right: 20px;
+        background: rgba(255, 255, 255, 0.9); border: none; border-radius: 50%;
+        width: 50px; height: 50px; cursor: pointer; z-index: 1000;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: flex;
+        align-items: center; justify-content: center; transition: 0.3s;
+    }
+
+/* Triângulo Delta Neon Verde */
+.user-location-icon {
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 22px solid #00ff66; /* Verde Neon */
+    filter: drop-shadow(0 0 8px #00ff66); /* Brilho Neon */
+    transition: transform 0.2s linear;
+    background: none !important;
+    border-radius: 0 !important;
+}
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0px rgba(33, 150, 243, 0.7); }
+        70% { box-shadow: 0 0 0 15px rgba(33, 150, 243, 0); }
+        100% { box-shadow: 0 0 0 0px rgba(33, 150, 243, 0); }
+    }
+
+    #modal-info {
+        display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+        z-index: 4000; align-items: center; justify-content: center; padding: 20px;
+    }
+
+    .leaflet-routing-container { display: none !important; }
+</style>
+</head>
+<body>
+
+    <button onclick="centralizarGps()" class="btn-locate" title="Minha Localização">
+    <img src="https://cdn-icons-png.flaticon.com/512/854/854838.png" style="width: 25px;">
+</button>
+
+    <div id="loader" class="fixed inset-0 bg-black z-[5000] flex items-center justify-center">
+
+<h1 id="delta-logo" class="cinzel text-5xl tracking-[10px] text-[#c5a059] opacity-0 uppercase">LOTEAMENTOS</h1>
+    </div>
+
+    <div id="modal-info">
+        <div class="bg-neutral-900 border border-[#c5a059] p-8 max-w-lg w-full rounded-lg">
+            <h2 class="cinzel text-2xl text-[#c5a059] mb-4">DETALHES DO PROJETO</h2>
+            <div class="space-y-4 text-sm text-gray-300">
+                <p><strong>Planta:</strong> Loteamento aprovado conforme normas municipais com infraestrutura completa.</p>
+                <p><strong>Memorial Descritivo:</strong> Pavimentação asfáltica, rede de água, iluminação em LED e drenagem pluvial.</p>
+                <p><strong>Prazo de Entrega:</strong> O memorial e documentos são entregues em até <strong>3 dias úteis</strong> após a confirmação da compra.</p>
+            </div>
+            <button onclick="fecharModal()" class="btn-gold py-3 px-6 mt-6 w-full uppercase text-xs rounded-sm">
+    Entendi
+</button>
+        </div>
+    </div>
+
+    <nav class="side-menu flex flex-col justify-between">
+        <div>
+            <div class="mb-6">
+                <h2 class="cinzel text-3xl text-[#c5a059]">DELTA</h2>
+                <p class="text-[10px] tracking-[5px] text-gray-400 uppercase">Premium Loteamento</p>
+            </div>
+
+<div class="mb-4">
+    <p class="text-[9px] text-gray-400 uppercase tracking-widest mb-2">Selecione o Empreendimento</p>
+    <select id="select-loteamento" onchange="gerenciarSelecao(this.value)" class="w-full cinzel text-xs">
+        <option value="">-- Selecione uma Visualização --</option>
+        <option value="GPS">📍 Minha Localização Atual</option>
+        <option value="LOTEAMENTO 1/LOTEAMENTO DA PAZ.geojson">🏘️ Loteamento da Paz</option>
+    </select>
+</div>
+
+            <div class="space-y-3">
+                <button onclick="abrirModal()" class="btn-outline py-2 px-4 w-full text-[10px] uppercase font-bold tracking-widest">Informações do Projeto</button>
+                
+                <div id="container-distancia" class="info-destaque opacity-0">
+                    <p class="text-[9px] text-gray-400 uppercase tracking-widest mb-1">Trajeto Selecionado</p>
+                    <h3 id="distancia-km" class="text-3xl font-bold text-white">0.0 km</h3>
+                    <p id="tempo-viagem" class="text-sm text-[#c5a059] font-semibold">-- min de condução</p>
+                    <button onclick="cancelarRota()" class="mt-3 text-[9px] text-red-500 uppercase font-bold hover:underline">✕ Cancelar Rota</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="lote-card" class="opacity-0 translate-y-10 bg-black/90 p-6 rounded-br-3xl backdrop-blur-md border border-white/20 shadow-2xl">
+    <p class="text-[#c5a059] font-bold mb-1 uppercase text-[10px] tracking-[3px]">Imóvel Selecionado</p>
+    <h2 id="lote-title" class="text-4xl cinzel mb-4 text-white">Lote --</h2>
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-white/5 p-3 rounded">
+            <p class="text-[9px] text-gray-400 uppercase">Área Total</p>
+            <p class="text-xl font-bold text-white" id="lote-area">--</p>
+        </div>
+        <div class="bg-white/5 p-3 rounded">
+            <p class="text-[9px] text-gray-400 uppercase">Perímetro</p>
+            <p class="text-xl font-bold text-white" id="lote-perimetro">--</p>
+        </div>
+    </div>
+<button onclick="irAteOLote()" class="btn-outline mb-3 py-3 w-full uppercase tracking-widest text-[10px] font-bold flex items-center justify-center gap-2 rounded-sm">
+    <img src="https://cdn-icons-png.flaticon.com/512/854/854838.png" style="width: 14px; filter: sepia(1) saturate(5) hue-rotate(10deg);"> 
+    Como chegar (GPS)
+</button>
+
+<button class="btn-gold py-4 w-full uppercase text-xs rounded-sm">
+    Reservar Agora
+</button>
+    <button class="btn-gold text-black font-extrabold py-4 w-full uppercase tracking-widest text-xs">Reservar Agora</button>
+</div>
+    </nav>
+
+    <img src="logo.png" class="map-logo" alt="Logo Loteamento">
+
+    <div id="map"></div>
+
+    <script>
+    // 1. Animação de Abertura
+    const tl = gsap.timeline();
+    tl.to("#delta-logo", { opacity: 1, duration: 1.8 })
+      .to("#loader", { opacity: 0, display: "none", duration: 0.8 })
+      .from(".side-menu", { x: -400, duration: 1 });
+
+    // 2. Configuração Inicial do Mapa
+    const map = L.map('map', {
+    center: [-2.4438, -54.7083], // Suas coordenadas
+    zoom: 15,
+    maxZoom: 21, // <--- Aumente este valor (estava provavelmente em 18 ou 19)
+    zoomControl: false 
+});
+    L.tileLayer('https://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    maxZoom: 21,        // Permite o zoom até 21
+    maxNativeZoom: 19   // Avisa o Leaflet para esticar a imagem do nível 19 se não houver 21
+}).addTo(map);
+
+    let camadaLotes, selecionado, controleRota, marcadorDestino;
+    let pontoOrigem = null;
+    let marcadorUsuario, circuloPrecisao; // Variáveis de localização declaradas apenas uma vez
+
+    // 3. Carregamento dos Lotes
+// Função que decide se vai para o GPS ou para o Loteamento
+function gerenciarSelecao(valor) {
+    if (valor === "GPS") {
+        centralizarGps();
+    } else if (valor !== "") {
+        trocarLoteamento(valor);
+    }
+}
+
+function trocarLoteamento(caminhoArquivo) {
+    if (camadaLotes) map.removeLayer(camadaLotes);
+    cancelarRota();
+
+    fetch(caminhoArquivo)
+        .then(res => res.json())
+        .then(data => {
+            camadaLotes = L.geoJSON(data, {
+                style: { fillColor: '#2ecc71', weight: 1.5, color: 'white', fillOpacity: 0.6 },
+                onEachFeature: (f, layer) => {
+                    const id = f.properties.Lote || f.properties.fid || f.properties.id || "";
+                    if(id) layer.bindTooltip(id.toString(), { permanent: true, direction: 'center', className: 'lote-label' });
+
+                    layer.on('click', (e) => {
+                        L.DomEvent.stopPropagation(e);
+                        if(selecionado) camadaLotes.resetStyle(selecionado);
+                        selecionado = layer;
+                        pontoOrigem = layer.getBounds().getCenter(); 
+                        layer.setStyle({ color: '#0088ff', weight: 6, fillOpacity: 0.8, fillColor: '#0044aa' });
+                        
+                        document.getElementById('lote-title').innerText = "Lote " + id;
+                        document.getElementById('lote-area').innerText = (f.properties.Area || "--") + " m²";
+                        document.getElementById('lote-perimetro').innerText = (f.properties.Perimetro || "--") + " m";
+                        gsap.to("#lote-card", { opacity: 1, y: 0, duration: 0.4 });
+                    });
+                }
+            }).addTo(map);
+            
+            // Faz o mapa dar zoom automático no loteamento carregado
+            if (data.features.length > 0) {
+                map.fitBounds(camadaLotes.getBounds(), { padding: [50, 50], duration: 1.5 });
+            }
+        })
+        .catch(err => console.error("Erro ao carregar ficheiro:", caminhoArquivo));
+}
+
+// Inicia o site focando no GPS do usuário
+window.addEventListener('load', () => {
+    // Tenta centralizar no GPS se ele já estiver ativo
+    if (marcadorUsuario) {
+        map.setView(marcadorUsuario.getLatLng(), 16);
+    } else {
+        // Caso o GPS demore, ele tenta localizar ativamente
+        map.locate({setView: true, maxZoom: 16});
+    }
+    
+    // Deixa o seletor visualmente limpo ou em "Minha Localização"
+    document.getElementById('select-loteamento').value = "GPS";
+});
+
+// 4. Sistema de Rota GPS -> Lote
+    function irAteOLote() {
+        if (!marcadorUsuario) {
+            alert("Aguardando sinal do seu GPS... Verifique se a localização está ativa.");
+            return;
+        }
+        if (!pontoOrigem) {
+            alert("Selecione um lote no mapa primeiro.");
+            return;
+        }
+
+        const seuGps = marcadorUsuario.getLatLng();
+        const destinoLote = pontoOrigem;
+
+        if(controleRota) map.removeControl(controleRota);
+
+        controleRota = L.Routing.control({
+            waypoints: [
+                L.latLng(seuGps.lat, seuGps.lng),
+                L.latLng(destinoLote.lat, destinoLote.lng)
+            ],
+            // Procure por lineOptions e substitua:
+lineOptions: { 
+    styles: [
+        { color: '#000000', weight: 9, opacity: 0.8 }, // Sombra preta para destacar
+        { color: '#00ff66', weight: 5, opacity: 1 }    // Linha Neon principal
+    ] 
+},
+            createMarker: () => { return null; },
+            addWaypoints: false
+        }).on('routesfound', function(ev) {
+            const r = ev.routes[0];
+            document.getElementById('distancia-km').innerText = (r.summary.totalDistance / 1000).toFixed(1) + " km";
+            document.getElementById('tempo-viagem').innerText = Math.round(r.summary.totalTime / 60) + " min de condução";
+            gsap.to("#container-distancia", { opacity: 1, duration: 0.5 });
+            
+            // Faz o mapa mostrar o trajeto completo
+            map.fitBounds(L.latLngBounds([seuGps, destinoLote]), { padding: [50, 50] });
+        }).addTo(map);
+    }
+
+    // 5. Funções de Interface
+    function cancelarRota() {
+        if(controleRota) map.removeControl(controleRota);
+        if(marcadorDestino) map.removeLayer(marcadorDestino);
+        marcadorDestino = null;
+        gsap.to("#container-distancia", { opacity: 0, duration: 0.3 });
+    }
+
+    function abrirModal() { document.getElementById('modal-info').style.display = 'flex'; }
+    function fecharModal() { document.getElementById('modal-info').style.display = 'none'; }
+    
+    // 6. Funções de GPS e Localização Real-Time
+    function centralizarGps() {
+        if (marcadorUsuario) {
+            map.setView(marcadorUsuario.getLatLng(), 18);
+        } else {
+            alert("Buscando sua localização...");
+        }
+    }
+
+    map.locate({ 
+        watch: true, 
+        enableHighAccuracy: true,
+        setView: false 
+    });
+
+    map.on('locationfound', function(e) {
+    const radius = e.accuracy / 2;
+    
+    // Pega a direção do movimento (heading) em graus
+    // Se o dispositivo não estiver em movimento, mantém a última direção
+    let direcao = e.heading || 0; 
+
+    // Se existir uma rota ativa, centraliza a câmera no usuário para guiar
+if (controleRota && window.gpsJaCentralizado) {
+    map.panTo(e.latlng);
+}
+    if (marcadorUsuario) {
+        marcadorUsuario.setLatLng(e.latlng);
+        circuloPrecisao.setLatLng(e.latlng).setRadius(radius);
+        
+        // Aplica a rotação ao elemento HTML do ícone
+        const iconElement = marcadorUsuario.getElement();
+        if (iconElement) {
+            iconElement.style.transform += ` rotate(${direcao}deg)`;
+        }
+    } else {
+        marcadorUsuario = L.marker(e.latlng, {
+            icon: L.divIcon({ 
+                className: 'user-location-icon', 
+                iconSize: [20, 20],
+                iconAnchor: [10, 10] 
+            })
+        }).addTo(map);
+        
+// Substitua a criação do circuloPrecisao por esta:
+circuloPrecisao = L.circle(e.latlng, { 
+    radius: radius, 
+    weight: 1, 
+    color: '#00ff66', 
+    fillColor: '#00ff66',
+    fillOpacity: 0.05 
+}).addTo(map);
+
+        if (!window.gpsJaCentralizado) {
+            map.setView(e.latlng, 18);
+            window.gpsJaCentralizado = true;
+        }
+    }
+});
+</script>
+</body>
+</html>
