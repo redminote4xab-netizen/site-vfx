@@ -325,16 +325,15 @@ function trocarLoteamento(caminhoArquivo) {
 }
 
 // Inicia o site focando no GPS do usuário
+// Substitua o bloco correspondente por este:
 window.addEventListener('load', () => {
-    // Tenta centralizar no GPS se ele já estiver ativo
-    if (marcadorUsuario) {
-        map.setView(marcadorUsuario.getLatLng(), 16);
-    } else {
-        // Caso o GPS demore, ele tenta localizar ativamente
-        map.locate({setView: true, maxZoom: 16});
-    }
+    // Apenas inicia a localização sem mover a câmera (setView: false)
+    map.locate({ 
+        watch: true, 
+        enableHighAccuracy: true,
+        setView: false 
+    });
     
-    // Deixa o seletor visualmente limpo ou em "Minha Localização"
     document.getElementById('select-loteamento').value = "GPS";
 });
 
@@ -393,37 +392,30 @@ lineOptions: {
     // 6. Funções de GPS e Localização Real-Time
 function centralizarGps() {
     if (marcadorUsuario) {
-        // Aqui sim, nós forçamos o mapa a ir para onde o usuário está
+        // Somente aqui a câmera se move
         map.setView(marcadorUsuario.getLatLng(), 18);
     } else {
-        alert("Buscando sua localização...");
-        // Força uma busca imediata caso o marcador ainda não exista
+        // Se o GPS ainda não foi encontrado, ele tenta uma busca rápida com foco
         map.locate({setView: true, maxZoom: 18});
+        alert("Buscando sua posição atual...");
     }
 }
-
-    map.locate({ 
-        watch: true, 
-        enableHighAccuracy: true,
-        setView: false 
-    });
 
 map.on('locationfound', function(e) {
     const radius = e.accuracy / 2;
     let direcao = e.heading || 0; 
 
     if (marcadorUsuario) {
-        // Apenas move o ícone e o círculo, SEM mover a câmera (map.setView)
+        // MOVE APENAS O ÍCONE, NÃO A CÂMERA
         marcadorUsuario.setLatLng(e.latlng);
         circuloPrecisao.setLatLng(e.latlng).setRadius(radius);
         
         const iconElement = marcadorUsuario.getElement();
         if (iconElement) {
-            // Atualiza a rotação da setinha conforme você vira o celular
             iconElement.style.transform = `translate3d(-10px, -10px, 0px) rotate(${direcao}deg)`;
         }
     } else {
-        // Cria o marcador pela primeira vez
+        // Cria o marcador na primeira vez que o sinal chega
         marcadorUsuario = L.marker(e.latlng, {
             icon: L.divIcon({ 
                 className: 'user-location-icon', 
@@ -440,10 +432,10 @@ map.on('locationfound', function(e) {
             fillOpacity: 0.05 
         }).addTo(map);
 
-        // Opcional: Centraliza apenas na PRIMEIRA vez que abre o app
-        if (!window.gpsJaCentralizado) {
+        // Opcional: Centraliza SÓ NA PRIMEIRA VEZ que o app abre
+        if (!window.primeiraCargaGps) {
             map.setView(e.latlng, 18);
-            window.gpsJaCentralizado = true;
+            window.primeiraCargaGps = true;
         }
     }
 });
