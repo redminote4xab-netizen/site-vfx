@@ -407,25 +407,22 @@ lineOptions: {
 
     map.on('locationfound', function(e) {
     const radius = e.accuracy / 2;
-    
-    // Pega a direção do movimento (heading) em graus
-    // Se o dispositivo não estiver em movimento, mantém a última direção
     let direcao = e.heading || 0; 
 
-    // Se existir uma rota ativa, centraliza a câmera no usuário para guiar
-if (controleRota && window.gpsJaCentralizado) {
-    map.panTo(e.latlng);
-}
+    // REMOVIDO: A parte que fazia o map.panTo ou map.setView automaticamente
+    
     if (marcadorUsuario) {
         marcadorUsuario.setLatLng(e.latlng);
         circuloPrecisao.setLatLng(e.latlng).setRadius(radius);
         
-        // Aplica a rotação ao elemento HTML do ícone
+        // Aplica a rotação ao ícone (Delta)
         const iconElement = marcadorUsuario.getElement();
         if (iconElement) {
-            iconElement.style.transform += ` rotate(${direcao}deg)`;
+            // Mantemos apenas a rotação, sem forçar a câmera
+            iconElement.style.transform = `translate3d(-10px, -10px, 0px) rotate(${direcao}deg)`;
         }
     } else {
+        // Criar o marcador pela primeira vez
         marcadorUsuario = L.marker(e.latlng, {
             icon: L.divIcon({ 
                 className: 'user-location-icon', 
@@ -434,15 +431,15 @@ if (controleRota && window.gpsJaCentralizado) {
             })
         }).addTo(map);
         
-// Substitua a criação do circuloPrecisao por esta:
-circuloPrecisao = L.circle(e.latlng, { 
-    radius: radius, 
-    weight: 1, 
-    color: '#00ff66', 
-    fillColor: '#00ff66',
-    fillOpacity: 0.05 
-}).addTo(map);
+        circuloPrecisao = L.circle(e.latlng, { 
+            radius: radius, 
+            weight: 1, 
+            color: '#00ff66', 
+            fillColor: '#00ff66',
+            fillOpacity: 0.05 
+        }).addTo(map);
 
+        // Apenas na PRIMEIRA vez que abre o app, ele foca no usuário
         if (!window.gpsJaCentralizado) {
             map.setView(e.latlng, 18);
             window.gpsJaCentralizado = true;
