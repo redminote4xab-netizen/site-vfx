@@ -391,13 +391,16 @@ lineOptions: {
     function fecharModal() { document.getElementById('modal-info').style.display = 'none'; }
     
     // 6. Funções de GPS e Localização Real-Time
-    function centralizarGps() {
-        if (marcadorUsuario) {
-            map.setView(marcadorUsuario.getLatLng(), 18);
-        } else {
-            alert("Buscando sua localização...");
-        }
+function centralizarGps() {
+    if (marcadorUsuario) {
+        // Aqui sim, nós forçamos o mapa a ir para onde o usuário está
+        map.setView(marcadorUsuario.getLatLng(), 18);
+    } else {
+        alert("Buscando sua localização...");
+        // Força uma busca imediata caso o marcador ainda não exista
+        map.locate({setView: true, maxZoom: 18});
     }
+}
 
     map.locate({ 
         watch: true, 
@@ -405,24 +408,22 @@ lineOptions: {
         setView: false 
     });
 
-    map.on('locationfound', function(e) {
+map.on('locationfound', function(e) {
     const radius = e.accuracy / 2;
     let direcao = e.heading || 0; 
 
-    // REMOVIDO: A parte que fazia o map.panTo ou map.setView automaticamente
-    
     if (marcadorUsuario) {
+        // Apenas move o ícone e o círculo, SEM mover a câmera (map.setView)
         marcadorUsuario.setLatLng(e.latlng);
         circuloPrecisao.setLatLng(e.latlng).setRadius(radius);
         
-        // Aplica a rotação ao ícone (Delta)
         const iconElement = marcadorUsuario.getElement();
         if (iconElement) {
-            // Mantemos apenas a rotação, sem forçar a câmera
+            // Atualiza a rotação da setinha conforme você vira o celular
             iconElement.style.transform = `translate3d(-10px, -10px, 0px) rotate(${direcao}deg)`;
         }
     } else {
-        // Criar o marcador pela primeira vez
+        // Cria o marcador pela primeira vez
         marcadorUsuario = L.marker(e.latlng, {
             icon: L.divIcon({ 
                 className: 'user-location-icon', 
@@ -439,7 +440,7 @@ lineOptions: {
             fillOpacity: 0.05 
         }).addTo(map);
 
-        // Apenas na PRIMEIRA vez que abre o app, ele foca no usuário
+        // Opcional: Centraliza apenas na PRIMEIRA vez que abre o app
         if (!window.gpsJaCentralizado) {
             map.setView(e.latlng, 18);
             window.gpsJaCentralizado = true;
