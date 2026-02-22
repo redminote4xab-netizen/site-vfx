@@ -48,7 +48,6 @@
             overflow: hidden;
         }
 
-        /* Correção 2: Garantir que o conteúdo dentro do zoom fique centralizado */
         .content-zoom {
             display: flex;
             justify-content: center;
@@ -56,11 +55,11 @@
             width: 100%;
             height: 100%;
             flex-direction: column;
+            will-change: transform, opacity; /* Melhora performance de hardware */
         }
 
-        /* Correção 4: Logo maior e pulsante */
         #logo-delta {
-            width: 500px; /* Aumentado */
+            width: 500px;
             max-width: 90vw;
             filter: drop-shadow(0 0 15px var(--neon-green));
             animation: neon-pulse 2s infinite alternate ease-in-out;
@@ -69,14 +68,13 @@
         .glass-card {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(0px);
+            -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(0, 255, 65, 0.2);
             padding: 60px; border-radius: 8px;
             width: 90%; max-width: 600px;
             position: relative; z-index: 2;
         }
 
-        /* Correção 1: Portfólio reestruturado */
         .portfolio-grid {
             display: flex;
             flex-wrap: wrap;
@@ -91,15 +89,15 @@
             position: relative;
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(80px);
+            -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(0, 255, 65, 0.2);
             padding: 30px 20px; border-radius: 12px;
             text-align: center; transition: 0.3s;
             overflow: hidden; 
-            min-height: 160px; /* Altura ajustada para caber texto extra */
+            min-height: 160px;
             height: auto;
-            flex: 1 1 calc(33.333% - 20px); /* Ocupa 1/3 da tela e quebra linha se precisar */
-            min-width: 280px; /* Impede de espremer demais no celular */
+            flex: 1 1 calc(33.333% - 20px);
+            min-width: 280px;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
 
@@ -131,7 +129,7 @@
             padding: 120px 5% 50px;
             position: relative;
             opacity: 0;
-            transform: scale(0.8);
+            transform: scale(0.9);
         }
 
         .container-limit { max-width: 1200px; margin: 0 auto; }
@@ -192,7 +190,8 @@
 
         @media (max-width: 768px) {
             .about-grid, .contact-grid-cyber, .stats-grid-cyber { grid-template-columns: 1fr; }
-            .portfolio-grid { height: auto; padding-top: 50px; }
+            .portfolio-grid { height: auto; }
+            .navbar { padding: 0 20px; }
         }
     </style>
 </head>
@@ -277,7 +276,6 @@
         </section>
     </main>
 
-
     <div class="post-zoom-content">
         <div class="container-limit">
             <section id="sobre" class="cyber-container">
@@ -359,52 +357,86 @@
         </div>
     </div>
 
-    <script>
-        gsap.registerPlugin(ScrollTrigger);
+<script>
+    gsap.registerPlugin(ScrollTrigger);
 
-        const masterTl = gsap.timeline({
-            scrollTrigger: {
-                trigger: "#main-wrapper",
-                start: "top top",
-                end: "+=800%", 
-                scrub: 1.5,
-                pin: true,
-                anticipatePin: 1
+    // Função de sincronização otimizada para vídeos com Keyframe 1
+    function syncVideo(videoSelector, progress, startPoint, endPoint) {
+        const video = document.querySelector(videoSelector);
+        if (video && video.readyState >= 2) { // Garante que o vídeo carregou metadados
+            let p = (progress - startPoint) / (endPoint - startPoint);
+            let clampedP = Math.max(0, Math.min(1, p));
+            
+            const targetTime = video.duration * clampedP;
+            
+            // Com Keyframe 1, não precisamos de suavização agressiva, 
+            // a busca é quase instantânea.
+            video.currentTime = targetTime;
+        }
+    }
+
+    const masterTl = gsap.timeline({
+        scrollTrigger: {
+            trigger: "#main-wrapper",
+            start: "top top",
+            end: "+=800%", 
+            scrub: 1, // Reduzido para 1 para resposta mais direta ao mouse
+            pin: true,
+            anticipatePin: 1,
+            onUpdate: (self) => {
+                // Sincroniza vid-2 (Cine) e vid-3 (Film)
+                syncVideo("#vid-2", self.progress, 0.2, 0.5);
+                syncVideo("#vid-3", self.progress, 0.5, 0.8);
             }
-        });
+        }
+    });
 
-        // 1. Layer 1 some
-        masterTl.to(".navbar", { y: -100, opacity: 0, duration: 0.5 }, 0);
-        masterTl.to("#content-1", { scale: 0.5, opacity: 0, duration: 1.5 }, 0);
-        masterTl.to("#vid-1", { opacity: 0, duration: 1.5 }, 0);
-        
-        // 2. Layer 2 aparece e some
-        masterTl.fromTo("#layer-2", { opacity: 0 }, { opacity: 1, duration: 1 }, "-=1")
-                .fromTo("#content-2", { scale: 8, opacity: 0 }, { scale: 1, opacity: 1, duration: 2, ease: "power2.out" }, "-=1")
-                .to("#content-2", { scale: 0.5, opacity: 0, duration: 1.5, delay: 0.5 })
-                .to("#vid-2", { opacity: 0, duration: 1.5 }, "-=1.5");
+    // Controle inicial dos vídeos
+    document.querySelectorAll('.bg-video').forEach(v => {
+        if (v.id === 'vid-1') {
+            v.play().catch(() => {
+                // Tenta forçar o play caso o navegador bloqueie
+                window.addEventListener('mousedown', () => v.play(), { once: true });
+            });
+        } else {
+            v.pause();
+            v.removeAttribute('autoplay');
+            v.preload = "auto"; // Faz o browser pré-carregar os frames
+        }
+    });
 
-        // 3. Layer 3 aparece (Portfólio)
-        masterTl.fromTo("#layer-3", { opacity: 0 }, { opacity: 1, duration: 1 }, "-=1")
-                .fromTo("#content-3", { scale: 8, opacity: 0 }, { scale: 1, opacity: 1, duration: 2, ease: "power2.out" }, "-=1");
+    // 1. Layer 1 (Intro) desaparece
+    masterTl.to(".navbar", { y: -100, opacity: 0, duration: 0.5 }, 0);
+    masterTl.to("#content-1", { scale: 0.5, opacity: 0, duration: 1.5 }, 0);
+    masterTl.to("#vid-1", { opacity: 0, duration: 1.5 }, 0);
+    
+    // 2. Layer 2 (Cine) entra e sai
+    masterTl.fromTo("#layer-2", { opacity: 0 }, { opacity: 1, duration: 1 }, "-=1")
+            .fromTo("#content-2", { scale: 8, opacity: 0 }, { scale: 1, opacity: 1, duration: 2, ease: "power2.out" }, "-=1")
+            .to("#content-2", { scale: 0.5, opacity: 0, duration: 1.5, delay: 0.5 })
+            .to("#vid-2", { opacity: 0, duration: 1.5 }, "-=1.5");
 
-        // 4. Zoom Out final do Portfólio para revelar o fundo
-        masterTl.to("#content-3", { scale: 0.5, opacity: 0, duration: 1.5, delay: 0.5 })
-                .to("#vid-3", { opacity: 0, duration: 1.5 }, "-=1.5")
-                .to(".navbar", { y: 0, opacity: 1, duration: 0.5 });
+    // 3. Layer 3 (Portfólio) entra
+    masterTl.fromTo("#layer-3", { opacity: 0 }, { opacity: 1, duration: 1 }, "-=1")
+            .fromTo("#content-3", { scale: 8, opacity: 0 }, { scale: 1, opacity: 1, duration: 2, ease: "power2.out" }, "-=1");
 
-        // 5. Entrada suave da seção Sobre enquanto você desce
-        gsap.to(".post-zoom-content", {
-            scrollTrigger: {
-                trigger: ".post-zoom-content",
-                start: "top bottom", 
-                end: "top 20%",
-                scrub: true,
-            },
-            opacity: 1,
-            scale: 1,
-            duration: 1
-        });
-    </script>
+    // 4. Zoom Out final e retorno da Navbar
+    masterTl.to("#content-3", { scale: 0.5, opacity: 0, duration: 1.5, delay: 0.5 })
+            .to("#vid-3", { opacity: 0, duration: 1.5 }, "-=1.5")
+            .to(".navbar", { y: 0, opacity: 1, duration: 0.5 });
+
+    // 5. Revelação da seção Sobre
+    gsap.to(".post-zoom-content", {
+        scrollTrigger: {
+            trigger: ".post-zoom-content",
+            start: "top bottom", 
+            end: "top 20%",
+            scrub: true,
+        },
+        opacity: 1,
+        scale: 1,
+        duration: 1
+    });
+</script>
 </body>
 </html>
